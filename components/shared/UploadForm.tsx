@@ -100,8 +100,8 @@ export default function UploadForm({
       onOpenChange={() => setIsDialogOpen((prev) => !prev)}
     >
       <DialogTrigger asChild>
-        <Button className="bg-blue-1 hover:bg-blue-2 hover:text-gray-1">
-          <UploadIcon className="mr-2" />
+        <Button className="bg-blue-1 hover:bg-blue-2 hover:text-gray-1 p-2 sm:p-3 md:p-4 text-sm sm:text-base">
+          <UploadIcon className="mr-2 w-4 h-4 sm:w-5 sm:h-5" />
           Upload File
         </Button>
       </DialogTrigger>
