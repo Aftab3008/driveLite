@@ -1,8 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useRef } from "react";
-
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -12,14 +11,21 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useUploadFiles } from "@xixixao/uploadstuff/react";
 import { Id } from "@/convex/_generated/dataModel";
-import { Loader } from "lucide-react";
+import { Loader, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { handleError } from "@/lib/utils";
+import { mimeTypes } from "@/constants";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -32,11 +38,10 @@ const formSchema = z.object({
 
 export default function UploadForm({
   orgId,
-  setIsDialogOpen,
 }: {
   orgId: string | null | undefined;
-  setIsDialogOpen: (value: boolean) => void;
 }) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const { startUpload } = useUploadFiles(generateUploadUrl);
   const createFile = useMutation(api.files.createFile);
@@ -65,10 +70,12 @@ export default function UploadForm({
       const storageId = (
         uploaded[0] as { response: { storageId: Id<"_storage"> } }
       ).response.storageId;
+      const fileType = mimeTypes[values.file.type] || "Unknown";
       const id = await createFile({
         name: values.title,
         fileId: storageId,
         orgId: orgId!,
+        type: fileType,
       });
       if (!id) {
         toast.error("Error creating file");
@@ -88,58 +95,72 @@ export default function UploadForm({
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  className="focus-visible:ring-2 focus-visible:ring-blue-1 focus-visible:ring-offset-2"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="file"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Select file</FormLabel>
-              <FormControl>
-                <Input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={onFileChange}
-                  className="cursor-pointer  py-2 px-4  rounded-md shadow-sm  transition duration-300 ease-in-out"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button
-          type="submit"
-          size="default"
-          className="bg-blue-1 hover:bg-blue-1/90 hover:text-white"
-          disabled={form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? (
-            <>
-              <Loader className="animate-spin mr-2" color="white" />
-              Uploading
-            </>
-          ) : (
-            "Upload"
-          )}
+    <Dialog
+      open={isDialogOpen}
+      onOpenChange={() => setIsDialogOpen((prev) => !prev)}
+    >
+      <DialogTrigger asChild>
+        <Button className="bg-blue-1 hover:bg-blue-2 hover:text-gray-1">
+          <UploadIcon className="mr-2" />
+          Upload File
         </Button>
-      </form>
-    </Form>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle className="mb-8 text-blue-1">Upload a File</DialogTitle>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="focus-visible:ring-2 focus-visible:ring-blue-1 focus-visible:ring-offset-2"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="file"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Select file</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={onFileChange}
+                      className="cursor-pointer  py-2 px-4  rounded-md shadow-sm  transition duration-300 ease-in-out"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              size="default"
+              className="bg-blue-1 hover:bg-blue-1/90 hover:text-white"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? (
+                <>
+                  <Loader className="animate-spin mr-2" color="white" />
+                  Uploading
+                </>
+              ) : (
+                "Upload"
+              )}
+            </Button>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }

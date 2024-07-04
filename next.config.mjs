@@ -8,7 +8,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "exciting-toad-970.convex.cloud",
+        hostname: "decisive-gull-332.convex.cloud",
       },
       {
         protocol: "https",
