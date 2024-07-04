@@ -2,27 +2,26 @@
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { SignedIn, SignedOut, useOrganization, useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { UploadIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import UploadForm from "@/components/shared/UploadForm";
+import { useState } from "react";
 
 export default function Home() {
   const { user, isLoaded: UserLoaded, isSignedIn } = useUser();
   const { organization, isLoaded: OrgLoaded } = useOrganization();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   let orgId = null;
   if (OrgLoaded && UserLoaded) {
     orgId = organization?.id ?? user?.id;
   }
   const files = useQuery(api.files.getFiles, orgId ? { orgId } : "skip");
-  const createFile = useMutation(api.files.createFile);
 
   return (
     <>
@@ -36,16 +35,23 @@ export default function Home() {
         <main className="container mx-auto pt-12">
           <div className="flex justify-between items-center">
             <h1 className="text-4xl font-bold text-gray-1">Your Files</h1>
-            <Dialog>
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={() => setIsDialogOpen((prev) => !prev)}
+            >
               <DialogTrigger asChild>
-                <Button>
+                <Button className="bg-blue-1 hover:bg-blue-2 hover:text-gray-1">
                   <UploadIcon className="mr-2" />
                   Upload File
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogTitle className="text-gray-1">Upload File</DialogTitle>
-                <UploadForm />
+                <DialogTitle className="mb-8 text-blue-1">
+                  Upload a File
+                </DialogTitle>
+                <UploadForm orgId={orgId} 
+                setIsDialogOpen={setIsDialogOpen}
+                />
               </DialogContent>
             </Dialog>
           </div>

@@ -17,6 +17,7 @@ async function hasAccessToOrg(
 export const createFile = mutation({
   args: {
     name: v.string(),
+    fileId: v.id("_storage"),
     orgId: v.string(),
   },
   async handler(ctx, args) {
@@ -28,10 +29,12 @@ export const createFile = mutation({
     if (!hasAccess) {
       throw new Error("You are not authorized to perform this action");
     }
-    await ctx.db.insert("files", {
+    const id = await ctx.db.insert("files", {
       name: args.name,
+      fileId: args.fileId,
       orgId: args.orgId,
     });
+    return id;
   },
 });
 
@@ -53,4 +56,12 @@ export const getFiles = query({
       .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
       .collect();
   },
+});
+
+export const generateUploadUrl = mutation(async (ctx) => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Unauthorized");
+  }
+  return await ctx.storage.generateUploadUrl();
 });
