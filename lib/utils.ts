@@ -54,3 +54,8 @@ export function removeKeysFromQuery({
     { skipNull: true }
   );
 }
+
+export function getLastName(fullName: string) {
+  const nameParts = fullName.trim().split(" ");
+  return nameParts[nameParts.length - 1];
+}

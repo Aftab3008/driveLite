@@ -14,17 +14,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreVertical, Star, StarOff, TrashIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  MoreVertical,
+  Star,
+  StarIcon,
+  StarOff,
+  TrashIcon,
+  UndoIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
-import { Doc, Id } from "@/convex/_generated/dataModel";
+import { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Protect } from "@clerk/nextjs";
 
 export default function ({ file }: { file: Doc<"files"> }) {
-  const deleteFile = useMutation(api.files.deleteFile);
   const toggleFavourites = useMutation(api.files.toggleFavourite);
+  const markAsDelete = useMutation(api.files.markAsDelete);
+  const restoreFile = useMutation(api.files.restoreFile);
   const [isOpen, setIsOpen] = useState(false);
   return (
     <>
@@ -40,10 +49,8 @@ export default function ({ file }: { file: Doc<"files"> }) {
             <AlertDialogAction
               onClick={async () => {
                 try {
-                  await deleteFile({
-                    fileId: file._id,
-                  });
-                  toast.success("File deleted successfully");
+                  await markAsDelete({ fileId: file._id });
+                  toast.success("File added to trash successfully");
                 } catch (error) {
                   toast.error("Error deleting file");
                 }
@@ -60,33 +67,68 @@ export default function ({ file }: { file: Doc<"files"> }) {
           <MoreVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem
-            className="flex gap-1  items-center cursor-pointer "
-            onClick={() => {
-              toggleFavourites({ fileId: file._id });
-            }}
+          {!file.isDelete && (
+            <DropdownMenuItem
+              onClick={() => {
+                window.open(file.fileUrl, "_blank");
+              }}
+              className="flex gap-1 items-center cursor-pointer"
+            >
+              <DownloadIcon className="w-4 h-4" />
+              Download
+            </DropdownMenuItem>
+          )}
+          {!file.isDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="flex gap-1  items-center cursor-pointer "
+                onClick={() => {
+                  toggleFavourites({ fileId: file._id });
+                }}
+              >
+                {file.isFav ? (
+                  <>
+                    <StarOff className="w-4 h-4" />
+                    Unfavourite
+                  </>
+                ) : (
+                  <>
+                    <Star className="w-4 h-4" />
+                    Favourites
+                  </>
+                )}
+              </DropdownMenuItem>
+            </>
+          )}
+          <Protect
+            condition={(has) =>
+              !has({ role: "org:member" }) || has({ role: "presonal:admin" })
+            }
+            fallback={null}
           >
-            {file.isFav ? (
-              <>
-                <StarOff className="w-4 h-4" />
-                Unfavourite
-              </>
+            {file.isDelete ? (
+              <DropdownMenuItem
+                className="flex gap-1 text-green-600 items-center cursor-pointer  hover:text-green-400 focus:text-green-400"
+                onClick={() => {
+                  restoreFile({ fileId: file._id });
+                }}
+              >
+                <UndoIcon className="w-4 h-4" />
+                Restore
+              </DropdownMenuItem>
             ) : (
               <>
-                <Star className="w-4 h-4" />
-                Favourites
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="flex gap-1 text-red-600 items-center cursor-pointer  hover:text-red-400 focus:text-red-400"
+                  onClick={() => setIsOpen(true)}
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  Delete
+                </DropdownMenuItem>
               </>
             )}
-          </DropdownMenuItem>
-          <Protect role="org:admin" fallback={null}>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="flex gap-1 text-red-600 items-center cursor-pointer  hover:text-red-400 focus:text-red-400"
-              onClick={() => setIsOpen(true)}
-            >
-              <TrashIcon className="w-4 h-4" />
-              Delete
-            </DropdownMenuItem>
           </Protect>
         </DropdownMenuContent>
       </DropdownMenu>

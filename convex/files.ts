@@ -1,4 +1,10 @@
-import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  MutationCtx,
+  query,
+  QueryCtx,
+} from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -17,7 +23,7 @@ async function hasAccessToOrg(
   const hasAccess =
     user?.orgIds.some((item) => item.orgId === orgId) ||
     user?.clerkId === orgId;
-  return hasAccess;
+  return { hasAccess, user };
 }
 
 export const createFile = mutation({
@@ -33,7 +39,11 @@ export const createFile = mutation({
     if (!identity) {
       throw new Error("Unauthorized");
     }
-    const hasAccess = await hasAccessToOrg(ctx, identity.subject, args.orgId);
+    const { hasAccess, user } = await hasAccessToOrg(
+      ctx,
+      identity.subject,
+      args.orgId
+    );
     if (!hasAccess) {
       throw new Error("You are not authorized to perform this action");
     }
@@ -41,9 +51,11 @@ export const createFile = mutation({
       name: args.name,
       fileId: args.fileId,
       orgId: args.orgId,
+      userId: user._id,
       type: args.type,
       fileUrl: args.fileUrl,
       isFav: false,
+      isDelete: false,
     });
     return id;
   },
@@ -54,13 +66,18 @@ export const getFiles = query({
     orgId: v.string(),
     query: v.optional(v.string()),
     favourites: v.optional(v.boolean()),
+    delete: v.optional(v.boolean()),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Unauthorized");
     }
-    const hasAccess = await hasAccessToOrg(ctx, identity.subject, args.orgId);
+    const { hasAccess } = await hasAccessToOrg(
+      ctx,
+      identity.subject,
+      args.orgId
+    );
     if (!hasAccess) {
       return [];
     }
@@ -70,11 +87,19 @@ export const getFiles = query({
         .query("files")
         .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
         .filter((q) => q.eq(q.field("isFav"), true))
+        .filter((q) => q.eq(q.field("isDelete"), false))
+        .collect();
+    } else if (args.delete) {
+      files = await ctx.db
+        .query("files")
+        .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+        .filter((q) => q.eq(q.field("isDelete"), true))
         .collect();
     } else {
       files = await ctx.db
         .query("files")
         .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+        .filter((q) => q.eq(q.field("isDelete"), false))
         .collect();
     }
     const query = args.query;
@@ -115,7 +140,11 @@ export const deleteFile = mutation({
     if (!file) {
       throw new ConvexError("File does not exist");
     }
-    const hasAccess = await hasAccessToOrg(ctx, identity.subject, file.orgId);
+    const { hasAccess } = await hasAccessToOrg(
+      ctx,
+      identity.subject,
+      file.orgId
+    );
     if (!hasAccess) {
       throw new ConvexError("You are not authorized to delete this file");
     }
@@ -146,7 +175,11 @@ export const toggleFavourite = mutation({
       throw new ConvexError("File does not exist");
     }
 
-    const hasAccess = await hasAccessToOrg(ctx, identity.subject, file.orgId);
+    const { hasAccess } = await hasAccessToOrg(
+      ctx,
+      identity.subject,
+      file.orgId
+    );
 
     if (!hasAccess) {
       throw new ConvexError("You are not authorized to delete this file");
@@ -194,7 +227,7 @@ async function hasAccessToFile(
   if (!file) {
     throw new ConvexError("File does not exist");
   }
-  const hasAccess = await hasAccessToOrg(ctx, identity.subject, file.orgId);
+  const { hasAccess } = await hasAccessToOrg(ctx, identity.subject, file.orgId);
   if (!hasAccess) {
     throw new ConvexError("You are not authorized to delete this file");
   }
@@ -207,3 +240,76 @@ async function hasAccessToFile(
   }
   return user;
 }
+
+export const markAsDelete = mutation({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new ConvexError("Unauthorized");
+    }
+
+    const file = await ctx.db.get(args.fileId);
+
+    if (!file) {
+      throw new ConvexError("File does not exist");
+    }
+
+    const { hasAccess } = await hasAccessToOrg(
+      ctx,
+      identity.subject,
+      file.orgId
+    );
+
+    if (!hasAccess) {
+      throw new ConvexError("You are not authorized to delete this file");
+    }
+    await ctx.db.patch(args.fileId, { isDelete: true });
+  },
+});
+
+export const restoreFile = mutation({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new ConvexError("Unauthorized");
+    }
+
+    const file = await ctx.db.get(args.fileId);
+
+    if (!file) {
+      throw new ConvexError("File does not exist");
+    }
+
+    const { hasAccess } = await hasAccessToOrg(
+      ctx,
+      identity.subject,
+      file.orgId
+    );
+
+    if (!hasAccess) {
+      throw new ConvexError("You are not authorized to delete this file");
+    }
+
+    await ctx.db.patch(args.fileId, { isDelete: false });
+  },
+});
+
+export const deleteAllFilesByCrons = internalMutation({
+  args: {},
+  handler: async (ctx, args) => {
+    const files = await ctx.db
+      .query("files")
+      .filter((q) => q.eq(q.field("isDelete"), true))
+      .collect();
+    await Promise.all(
+      files.map(async (file) => {
+        await ctx.storage.delete(file.fileId);
+        await ctx.db.delete(file._id);
+      })
+    );
+  },
+});

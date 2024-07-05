@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { HomeIcon, StarIcon } from "lucide-react";
+import { HomeIcon, StarIcon, TrashIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -27,6 +27,16 @@ export default function Sidebar() {
       >
         <StarIcon className="w-6 h-6" />
         <span className="hidden sm:block">Favourites</span>
+      </Link>
+      <Link
+        href="/trash"
+        className={cn("flex items-center gap-2 rounded-2xl p-2 sm:p-4", {
+          "text-white bg-blue-1": pathname === "/trash",
+          "text-blue-1": pathname !== "/trash",
+        })}
+      >
+        <TrashIcon className="w-6 h-6" />
+        <span className="hidden sm:block">Trash</span>
       </Link>
     </div>
   );

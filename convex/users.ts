@@ -1,5 +1,10 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, MutationCtx, QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  MutationCtx,
+  query,
+  QueryCtx,
+} from "./_generated/server";
 import { roles } from "./schema";
 
 export const createUser = internalMutation({
@@ -28,10 +33,6 @@ export const updateUser = internalMutation({
     name: v.string(),
   },
   async handler(ctx, args) {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
-    }
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), args.clerkId))
@@ -133,3 +134,14 @@ export async function getUserByClerkId(
   }
   return user;
 }
+
+export const getUserProfile = query({
+  args: { userId: v.id("users") },
+  async handler(ctx, args) {
+    const user = await ctx.db.get(args.userId);
+    return {
+      name: user?.name,
+      imageUrl: user?.imageUrl,
+    };
+  },
+});

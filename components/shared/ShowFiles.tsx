@@ -10,15 +10,21 @@ import { useState } from "react";
 import { useDebounce } from "@/lib/useDebounce";
 import SearchBar from "@/components/shared/SearchBar";
 import Placeholder from "./Placeholder";
-import { usePathname } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 
-export default function ShowFiles({ title }: { title: string }) {
+export default function ShowFiles({
+  title,
+  isFav,
+  isDelete,
+}: {
+  title: string;
+  isFav?: boolean;
+  isDelete?: boolean;
+}) {
   const { user, isLoaded: UserLoaded } = useUser();
   const { organization, isLoaded: OrgLoaded } = useOrganization();
   const [query, setQuery] = useState("");
   const deboundedQuery = useDebounce(query, 500);
-  const pathname = usePathname();
-  const isFav = pathname === "/favourites";
 
   let orgId = null;
   if (OrgLoaded && UserLoaded) {
@@ -26,17 +32,26 @@ export default function ShowFiles({ title }: { title: string }) {
   }
   const files = useQuery(
     api.files.getFiles,
-    orgId ? { orgId, query: deboundedQuery, favourites: isFav } : "skip"
+    orgId
+      ? { orgId, query: deboundedQuery, favourites: isFav, delete: isDelete }
+      : "skip"
   );
 
   return (
     <>
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-1">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-1 mr-2">
           {title}
         </h1>
         <SearchBar query={query} setQuery={setQuery} />
-        <UploadForm orgId={orgId} />
+        {!isDelete ? (
+          <UploadForm orgId={orgId} />
+        ) : (
+          <p className="text-xs font-bold text-blue-1">
+            <AlertCircle className="h-4 w-4 inline-block mr-2" />
+            Files will be deleted in 30days
+          </p>
+        )}
       </div>
       {files ? (
         <>

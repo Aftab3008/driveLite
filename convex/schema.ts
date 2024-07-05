@@ -9,8 +9,10 @@ export default defineSchema({
     fileId: v.id("_storage"),
     type: v.string(),
     orgId: v.string(),
+    userId: v.id("users"),
     fileUrl: v.string(),
     isFav: v.boolean(),
+    isDelete: v.boolean(),
   }).index("by_orgId", ["orgId"]),
 
   users: defineTable({
