@@ -38,6 +38,19 @@ const handleClerkWebhook = httpAction(async (ctx, request) => {
         role: event.data.role === "org:admin" ? "admin" : "member",
       });
       break;
+    case "organizationMembership.updated":
+      await ctx.runMutation(internal.users.UpdateOrgIdToUser, {
+        clerkId: event.data.public_user_data.user_id,
+        orgId: event.data.organization.id,
+        role: event.data.role === "org:admin" ? "admin" : "member",
+      });
+      break;
+    case "organizationMembership.deleted":
+      await ctx.runMutation(internal.users.DeleteUserFromOrg, {
+        clerkId: event.data.public_user_data.user_id,
+        orgId: event.data.organization.id,
+      });
+      break;
   }
   return new Response(null, {
     status: 200,

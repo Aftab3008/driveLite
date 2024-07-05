@@ -12,15 +12,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { mimeTypeIcons } from "@/constants";
 import { faFile } from "@fortawesome/free-solid-svg-icons";
 import Image from "next/image";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 
 export default function FileCard({ file }: { file: Doc<"files"> }) {
-  const getImageUrl = useQuery(api.files.getFileUrl, {
-    fileId: file._id,
-  });
-  let url = getImageUrl;
-
   return (
     <Card>
       <CardHeader className="relative">
@@ -32,17 +25,18 @@ export default function FileCard({ file }: { file: Doc<"files"> }) {
           {file.name}
         </CardTitle>
         <div className="absolute top-2 right-2">
-          <FileCardDrodown fileId={file._id} />
+          <FileCardDrodown file={file} />
         </div>
       </CardHeader>
       <CardContent className="h-[200px] flex justify-center items-center">
-        {url && file.type.toLowerCase().includes("image") && (
+        {file.type.toLowerCase().includes("image") && (
           <Image
-            src={url}
+            src={file.fileUrl}
             alt={file.name}
             width={200}
             height={100}
             className="rounded-2xl"
+            loading="lazy"
           />
         )}
         {!file.type.toLowerCase().includes("image") && (
@@ -56,9 +50,9 @@ export default function FileCard({ file }: { file: Doc<"files"> }) {
         <Button
           className="bg-blue-1 text-white hover:bg-blue-1/90"
           onClick={() => {
-            window.open(url!, "_blank");
+            window.open(file.fileUrl, "_blank");
           }}
-          disabled={!url}
+          disabled={!file.fileUrl}
         >
           Download
         </Button>

@@ -71,6 +71,55 @@ export const addOrgIdToUser = internalMutation({
   },
 });
 
+export const UpdateOrgIdToUser = internalMutation({
+  args: {
+    clerkId: v.string(),
+    orgId: v.string(),
+    role: roles,
+  },
+  async handler(ctx, args) {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      throw new ConvexError("User not found");
+    }
+
+    const orgIds = user.orgIds.map((item) =>
+      item.orgId === args.orgId ? { orgId: args.orgId, role: args.role } : item
+    );
+
+    await ctx.db.patch(user._id, {
+      orgIds,
+    });
+  },
+});
+
+export const DeleteUserFromOrg = internalMutation({
+  args: {
+    clerkId: v.string(),
+    orgId: v.string(),
+  },
+  async handler(ctx, args) {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      throw new ConvexError("User not found");
+    }
+
+    const orgIds = user.orgIds.filter((item) => item.orgId !== args.orgId);
+
+    await ctx.db.patch(user._id, {
+      orgIds,
+    });
+  },
+});
+
 export async function getUserByClerkId(
   ctx: QueryCtx | MutationCtx,
   clerkId: string

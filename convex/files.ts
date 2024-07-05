@@ -1,13 +1,19 @@
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
-import { getUserByClerkId } from "./users";
+import { Id } from "./_generated/dataModel";
 
 async function hasAccessToOrg(
   ctx: QueryCtx | MutationCtx,
   clerkId: string,
   orgId: string
 ) {
-  const user = await getUserByClerkId(ctx, clerkId);
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+    .first();
+  if (!user) {
+    throw new ConvexError("User does not exist");
+  }
   const hasAccess =
     user?.orgIds.some((item) => item.orgId === orgId) ||
     user?.clerkId === orgId;
@@ -20,6 +26,7 @@ export const createFile = mutation({
     fileId: v.id("_storage"),
     orgId: v.string(),
     type: v.string(),
+    fileUrl: v.string(),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
@@ -35,6 +42,8 @@ export const createFile = mutation({
       fileId: args.fileId,
       orgId: args.orgId,
       type: args.type,
+      fileUrl: args.fileUrl,
+      isFav: false,
     });
     return id;
   },
@@ -44,6 +53,7 @@ export const getFiles = query({
   args: {
     orgId: v.string(),
     query: v.optional(v.string()),
+    favourites: v.optional(v.boolean()),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
@@ -54,10 +64,19 @@ export const getFiles = query({
     if (!hasAccess) {
       return [];
     }
-    const files = await ctx.db
-      .query("files")
-      .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
-      .collect();
+    let files;
+    if (args.favourites) {
+      files = await ctx.db
+        .query("files")
+        .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+        .filter((q) => q.eq(q.field("isFav"), true))
+        .collect();
+    } else {
+      files = await ctx.db
+        .query("files")
+        .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+        .collect();
+    }
     const query = args.query;
     if (query) {
       return files.filter((file) =>
@@ -105,13 +124,86 @@ export const deleteFile = mutation({
   },
 });
 
-export const getFileUrl = query({
-  args: { fileId: v.id("files") },
+export const getFileUrl = mutation({
+  args: { fileId: v.id("_storage") },
   handler: async (ctx, args) => {
-    const file = await ctx.db.get(args.fileId);
-    if (!file) {
-      return null;
-    }
-    return await ctx.storage.getUrl(file.fileId);
+    return await ctx.storage.getUrl(args.fileId);
   },
 });
+
+export const toggleFavourite = mutation({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new ConvexError("Unauthorized");
+    }
+
+    const file = await ctx.db.get(args.fileId);
+
+    if (!file) {
+      throw new ConvexError("File does not exist");
+    }
+
+    const hasAccess = await hasAccessToOrg(ctx, identity.subject, file.orgId);
+
+    if (!hasAccess) {
+      throw new ConvexError("You are not authorized to delete this file");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) {
+      throw new ConvexError("User does not exist");
+    }
+
+    const favourite = await ctx.db
+      .query("favourites")
+      .withIndex("by_userId_orgId_fileId", (q) =>
+        q.eq("userId", user._id).eq("orgId", file.orgId).eq("fileId", file._id)
+      )
+      .first();
+
+    if (!favourite) {
+      await ctx.db.insert("favourites", {
+        fileId: file._id,
+        orgId: file.orgId,
+        userId: user._id,
+      });
+      await ctx.db.patch(file._id, { isFav: true });
+    } else {
+      await ctx.db.delete(favourite._id);
+      await ctx.db.patch(file._id, { isFav: false });
+    }
+  },
+});
+
+async function hasAccessToFile(
+  ctx: QueryCtx | MutationCtx,
+  fileId: Id<"files">
+) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Unauthorized");
+  }
+  const file = await ctx.db.get(fileId);
+  if (!file) {
+    throw new ConvexError("File does not exist");
+  }
+  const hasAccess = await hasAccessToOrg(ctx, identity.subject, file.orgId);
+  if (!hasAccess) {
+    throw new ConvexError("You are not authorized to delete this file");
+  }
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+    .first();
+  if (!user) {
+    throw new ConvexError("User does not exist");
+  }
+  return user;
+}

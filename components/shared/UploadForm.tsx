@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useUploadFiles } from "@xixixao/uploadstuff/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { Loader, UploadIcon } from "lucide-react";
@@ -46,6 +46,7 @@ export default function UploadForm({
   const { startUpload } = useUploadFiles(generateUploadUrl);
   const createFile = useMutation(api.files.createFile);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const getFileUrl = useMutation(api.files.getFileUrl);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,12 +71,14 @@ export default function UploadForm({
       const storageId = (
         uploaded[0] as { response: { storageId: Id<"_storage"> } }
       ).response.storageId;
+      const fileUrl = await getFileUrl({ fileId: storageId });
       const fileType = mimeTypes[values.file.type] || "Unknown";
       const id = await createFile({
         name: values.title,
         fileId: storageId,
         orgId: orgId!,
         type: fileType,
+        fileUrl: fileUrl!,
       });
       if (!id) {
         toast.error("Error creating file");

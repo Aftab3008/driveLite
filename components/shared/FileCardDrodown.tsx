@@ -2,6 +2,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -13,15 +14,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreVertical, TrashIcon } from "lucide-react";
+import { MoreVertical, Star, StarOff, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
+import { Protect } from "@clerk/nextjs";
 
-export default function ({ fileId }: { fileId: Id<"files"> }) {
+export default function ({ file }: { file: Doc<"files"> }) {
   const deleteFile = useMutation(api.files.deleteFile);
+  const toggleFavourites = useMutation(api.files.toggleFavourite);
   const [isOpen, setIsOpen] = useState(false);
   return (
     <>
@@ -38,7 +41,7 @@ export default function ({ fileId }: { fileId: Id<"files"> }) {
               onClick={async () => {
                 try {
                   await deleteFile({
-                    fileId,
+                    fileId: file._id,
                   });
                   toast.success("File deleted successfully");
                 } catch (error) {
@@ -58,12 +61,33 @@ export default function ({ fileId }: { fileId: Id<"files"> }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem
-            className="flex gap-1 text-red-600 items-center cursor-pointer  hover:text-red-400 focus:text-red-400"
-            onClick={() => setIsOpen(true)}
+            className="flex gap-1  items-center cursor-pointer "
+            onClick={() => {
+              toggleFavourites({ fileId: file._id });
+            }}
           >
-            <TrashIcon className="w-4 h-4" />
-            Delete
+            {file.isFav ? (
+              <>
+                <StarOff className="w-4 h-4" />
+                Unfavourite
+              </>
+            ) : (
+              <>
+                <Star className="w-4 h-4" />
+                Favourites
+              </>
+            )}
           </DropdownMenuItem>
+          <Protect role="org:admin" fallback={null}>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="flex gap-1 text-red-600 items-center cursor-pointer  hover:text-red-400 focus:text-red-400"
+              onClick={() => setIsOpen(true)}
+            >
+              <TrashIcon className="w-4 h-4" />
+              Delete
+            </DropdownMenuItem>
+          </Protect>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
