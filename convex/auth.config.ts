@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://direct-monarch-18.clerk.accounts.dev",
+      domain: process.env.CLERK_URL,
       applicationID: "convex",
     },
   ],
