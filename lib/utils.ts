@@ -59,3 +59,12 @@ export function getLastName(fullName: string) {
   const nameParts = fullName.trim().split(" ");
   return nameParts[nameParts.length - 1];
 }
+export function capitalizeFirstLetterIfNotDate(str: string) {
+  const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+
+  if (dateRegex.test(str)) {
+    return str;
+  }
+  if (str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}

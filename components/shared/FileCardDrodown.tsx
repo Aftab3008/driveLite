@@ -18,7 +18,6 @@ import {
   DownloadIcon,
   MoreVertical,
   Star,
-  StarIcon,
   StarOff,
   TrashIcon,
   UndoIcon,

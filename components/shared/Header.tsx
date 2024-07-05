@@ -12,7 +12,7 @@ import Link from "next/link";
 
 export default function Header() {
   return (
-    <div className="border-b py-4 bg-gray-50">
+    <div className="relative z-10 border-b py-4 bg-gray-50">
       <div className="items-center container mx-auto justify-between flex">
         <div className="flex items-center gap-2 flex-wrap">
           <Link href="/" className="flex items-center gap-2 flex-wrap">

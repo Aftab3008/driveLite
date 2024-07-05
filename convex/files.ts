@@ -67,6 +67,7 @@ export const getFiles = query({
     query: v.optional(v.string()),
     favourites: v.optional(v.boolean()),
     delete: v.optional(v.boolean()),
+    type: v.optional(v.string()),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
@@ -104,8 +105,14 @@ export const getFiles = query({
     }
     const query = args.query;
     if (query) {
-      return files.filter((file) =>
+      files = files.filter((file) =>
         file.name.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+    const type = args.type;
+    if (type) {
+      files = files.filter((file) =>
+        file.type.toLowerCase().includes(type.toLowerCase())
       );
     }
     return files;
